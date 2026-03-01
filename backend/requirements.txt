@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+scikit-learn
+joblib
+numpy
+pandas
+pydantic
+python-multipart
+httpx
+firebase-admin
+python-dateutil
+razorpay
+resend
+python-dotenv
+pillow
+pdf2image
+pytesseract
