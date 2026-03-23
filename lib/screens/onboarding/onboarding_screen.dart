@@ -11,36 +11,65 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   final StorageService _storage = StorageService();
   int _currentPage = 0;
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   final List<OnboardingPageData> _pages = [
     OnboardingPageData(
-      icon: Icons.speed_outlined,
+      icon: Icons.electric_bolt_rounded,
       title: AppStrings.onboardingTitle1,
       subtitle: AppStrings.onboardingSubtitle1,
       color: AppColors.primary,
+      accentColor: const Color(0xFF6366F1),
     ),
     OnboardingPageData(
-      icon: Icons.shield_outlined,
+      icon: Icons.shield_rounded,
       title: AppStrings.onboardingTitle2,
       subtitle: AppStrings.onboardingSubtitle2,
-      color: AppColors.secondary,
+      color: const Color(0xFF22C55E),
+      accentColor: const Color(0xFF0EA5E9),
     ),
     OnboardingPageData(
-      icon: Icons.trending_up_outlined,
+      icon: Icons.trending_up_rounded,
       title: AppStrings.onboardingTitle3,
       subtitle: AppStrings.onboardingSubtitle3,
-      color: AppColors.accent,
+      color: const Color(0xFFF97316),
+      accentColor: const Color(0xFFEF4444),
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+    _animationController.forward();
+  }
+
   void _onPageChanged(int page) {
-    setState(() {
-      _currentPage = page;
-    });
+    setState(() => _currentPage = page);
+    _animationController.reset();
+    _animationController.forward();
   }
 
   Future<void> _onSkipOrDone() async {
@@ -52,8 +81,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _onNext() {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
       );
     } else {
       _onSkipOrDone();
@@ -63,132 +92,384 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final page = _pages[_currentPage];
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Skip Button
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextButton(
-                  onPressed: _onSkipOrDone,
-                  child: const Text(AppStrings.skip),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Stack(
+        children: [
+          // Animated background gradient blob
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
+            top: -60,
+            right: -60,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    page.color.withOpacity(0.15),
+                    page.color.withOpacity(0.02),
+                  ],
                 ),
               ),
             ),
-
-            // Page Content
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  return _OnboardingPage(data: _pages[index]);
-                },
+          ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
+            bottom: 120,
+            left: -80,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    page.accentColor.withOpacity(0.1),
+                    page.accentColor.withOpacity(0.01),
+                  ],
+                ),
               ),
             ),
+          ),
 
-            // Bottom Section
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Page Indicator
-                  SmoothPageIndicator(
+          // Main content
+          SafeArea(
+            child: Column(
+              children: [
+                // Top bar
+                _buildTopBar(),
+
+                // Page view
+                Expanded(
+                  child: PageView.builder(
                     controller: _pageController,
-                    count: _pages.length,
-                    effect: const WormEffect(
-                      dotWidth: 24,
-                      dotHeight: 8,
-                      spacing: 8,
-                      activeDotColor: AppColors.primary,
-                      dotColor: AppColors.divider,
+                    onPageChanged: _onPageChanged,
+                    itemCount: _pages.length,
+                    itemBuilder: (context, index) {
+                      return _buildPage(_pages[index]);
+                    },
+                  ),
+                ),
+
+                // Bottom section
+                _buildBottomSection(page),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // App brand
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: AppColors.primaryGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Center(
+                  child: Text(
+                    'S',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                AppStrings.appName,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
 
-                  // Next/Get Started Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _onNext,
-                      child: Text(
-                        _currentPage == _pages.length - 1
-                            ? AppStrings.getStarted
-                            : AppStrings.next,
-                      ),
-                    ),
+          // Skip button
+          GestureDetector(
+            onTap: _onSkipOrDone,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
+              child: Text(
+                AppStrings.skip,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[500],
+                ),
+              ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPage(OnboardingPageData data) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(32, 48, 32, 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Illustration
+              _buildIllustration(data),
+              const SizedBox(height: 48),
+
+              // Title
+              Text(
+                data.title,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+
+              // Subtitle
+              Text(
+                data.subtitle,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w400,
+                  height: 1.65,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _OnboardingPage extends StatelessWidget {
-  final OnboardingPageData data;
-
-  const _OnboardingPage({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Illustration Container
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
+  Widget _buildIllustration(OnboardingPageData data) {
+    return SizedBox(
+      width: 220,
+      height: 220,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Outer ring
+          Container(
+            width: 220,
+            height: 220,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
                 color: data.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Icon(
-                data.icon,
-                size: 80,
-                color: data.color,
+                width: 1.5,
               ),
             ),
-            const SizedBox(height: 32),
-
-          // Title
-          Text(
-            data.title,
-            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-
-          // Subtitle
-          Text(
-            data.subtitle,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-            textAlign: TextAlign.center,
+          // Middle ring
+          Container(
+            width: 175,
+            height: 175,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: data.color.withOpacity(0.18),
+                width: 1.5,
+              ),
+            ),
           ),
-          const SizedBox(height: 32),
+          // Inner filled circle
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            width: 130,
+            height: 130,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  data.color.withOpacity(0.15),
+                  data.accentColor.withOpacity(0.08),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: data.color.withOpacity(0.25),
+                width: 1.5,
+              ),
+            ),
+          ),
+          // Icon
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [data.color, data.accentColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: data.color.withOpacity(0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Icon(
+              data.icon,
+              size: 36,
+              color: Colors.white,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBottomSection(OnboardingPageData page) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // Page indicator
+            SmoothPageIndicator(
+              controller: _pageController,
+              count: _pages.length,
+              effect: ExpandingDotsEffect(
+                dotWidth: 8,
+                dotHeight: 8,
+                expansionFactor: 3,
+                spacing: 6,
+                activeDotColor: page.color,
+                dotColor: const Color(0xFFE2E8F0),
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // Next / Get Started button
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [page.color, page.accentColor],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: page.color.withOpacity(0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _onNext,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _currentPage == _pages.length - 1
+                              ? AppStrings.getStarted
+                              : AppStrings.next,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          _currentPage == _pages.length - 1
+                              ? Icons.rocket_launch_rounded
+                              : Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Step dots label
+            Text(
+              '${_currentPage + 1} of ${_pages.length}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
@@ -200,11 +481,13 @@ class OnboardingPageData {
   final String title;
   final String subtitle;
   final Color color;
+  final Color accentColor;
 
   OnboardingPageData({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.color,
+    required this.accentColor,
   });
 }

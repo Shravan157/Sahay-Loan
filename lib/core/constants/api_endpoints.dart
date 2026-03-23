@@ -12,10 +12,10 @@ class ApiEndpoints {
       return 'http://localhost:8000';
     } else {
       // Running on mobile device or emulator
-      return 'http://192.168.3.1:8000';
+      return 'https://marrowish-addisyn-untapped.ngrok-free.dev';
     }
   }
-  
+
   static const String apiVersion = '';
 
   // Auth Endpoints
@@ -23,6 +23,7 @@ class ApiEndpoints {
   static const String login = '/login';
   static const String logout = '/logout';
   static const String profile = '/profile';
+  static const String updateFcmToken = '/update-fcm-token';
 
   // KYC Endpoints
   static const String submitKyc = '/submit-kyc';
@@ -52,8 +53,12 @@ class ApiEndpoints {
   static const String adminAllLoans = '$adminPrefix/all-loans';
   static const String adminAddCompany = '$adminPrefix/add-company';
   static const String adminSharePhase1 = '$adminPrefix/share-phase1';
-  static const String adminSharePhase2 = '$adminPrefix/share-phase2';
+  static const String adminSharePhase2 =
+      '$adminPrefix/approve-phase2'; // backend route is approve-phase2, NOT share-phase2
+  static const String adminAllCompanies = '$adminPrefix/all-companies';
   static const String adminDisburseLoan = '$adminPrefix/disburse-loan';
+  static const String adminSharedProfiles = '$adminPrefix/shared-profiles';
+  // Note: No /dashboard-stats route on backend. Compute from allLoans + allUsers.
 
   // Provider Endpoints
   static const String providerPrefix = '/provider-admin';
@@ -62,6 +67,28 @@ class ApiEndpoints {
   static const String providerRequestFullDetails =
       '$providerPrefix/request-full-details';
   static const String providerLoanDecision = '$providerPrefix/loan-decision';
+
+  // Provider Document Endpoints
+  static const String providerDocPrefix = '/provider-documents';
+  static String providerDocuments(String companyId) =>
+      '$providerDocPrefix/$companyId';
+  static const String uploadProviderDocument = '$providerDocPrefix/upload';
+  static const String uploadMultipleProviderDocuments =
+      '$providerDocPrefix/upload-multiple';
+  static String deleteProviderDocument(String companyId, String docType) =>
+      '$providerDocPrefix/$companyId/$docType';
+  static String submitProviderDocuments(String companyId) =>
+      '$providerDocPrefix/$companyId/submit';
+  static const String verifyProviderDocument = '$providerDocPrefix/verify';
+  static const String pendingProviderDocuments =
+      '$providerDocPrefix/pending-verifications';
+  static const String verifyProviderStatus = '$providerDocPrefix/verify-status';
+
+  // Payment Endpoints
+  static const String createPaymentIntent = '/create-payment-intent';
+  static const String confirmPayment = '/confirm-emi-payment';
+  static const String paymentStatus = '/payment-status';
+  static const String paymentHistory = '/payment-history';
 
   // Helper method to get full URL
   static String getUrl(String endpoint) {

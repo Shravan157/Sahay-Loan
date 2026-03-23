@@ -8,7 +8,15 @@ class RegisterInput(BaseModel):
     name: str
     phone: str
     role: str = ROLE_USER           # "user", "sahay_admin", "provider_admin"
-    company_id: Optional[str] = None  # required if role is provider_admin
+    company_id: Optional[str] = None  # required if role is provider_admin (for existing companies)
+    
+    # Self-registration fields for providers (when company_id is null)
+    company_type: Optional[str] = None      # e.g., "NBFC", "Bank", "Fintech"
+    cin: Optional[str] = None               # Company Identification Number
+    gstin: Optional[str] = None             # GST Number
+    pan: Optional[str] = None               # Company PAN
+    registered_address: Optional[str] = None
+    website: Optional[str] = None
 
 class LoginInput(BaseModel):
     email: str
@@ -96,3 +104,14 @@ class ConfirmEMIPaymentInput(BaseModel):
     loan_id: str
     month: int
     payment_intent_id: str  # returned by Stripe after Flutter confirms payment
+
+class ProviderDocumentUpdate(BaseModel):
+    document_type: str              # e.g., "gst_certificate"
+    document_name: str              # e.g., "GST Registration Certificate"
+    file_base64: str                # document content
+    file_extension: str = "pdf"     # "pdf", "jpg", "png"
+
+class VerificationStatusChange(BaseModel):
+    company_id: str
+    status: str                     # "verified", "rejected", "pending"
+    reason: Optional[str] = ""

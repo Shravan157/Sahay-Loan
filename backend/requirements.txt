@@ -10,6 +10,7 @@ httpx
 firebase-admin
 python-dateutil
 razorpay
+stripe
 resend
 python-dotenv
 pillow

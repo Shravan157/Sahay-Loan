@@ -3,6 +3,7 @@ from datetime import datetime
 from app.core.config import db, settings
 from app.core.security import verify_firebase_token
 from app.models.schemas import CreatePaymentIntentInput, ConfirmEMIPaymentInput
+from app.services.notification_service import send_payment_success_notification, send_payment_failed_notification
 import stripe
 
 router = APIRouter()
@@ -130,6 +131,14 @@ def confirm_emi_payment(data: ConfirmEMIPaymentInput, background_tasks: Backgrou
             emi_data["amount"],
             data.payment_intent_id
         )
+        
+        # Send payment success notification
+        background_tasks.add_task(
+            send_payment_success_notification,
+            user["uid"],
+            emi_data["amount"],
+            data.month
+        )
 
         return {
             "status": "success",
@@ -173,5 +182,83 @@ def payment_status(loan_id: str, month: int, user=Depends(verify_firebase_token)
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/payment-history")
+def get_payment_history(user=Depends(verify_firebase_token)):
+    """Get payment history based on user role"""
+    try:
+        user_role = user.get("role", "user")
+        user_uid = user["uid"]
+        
+        payments = []
+        
+        if user_role == "sahay_admin":
+            # Admin sees all payments
+            repayments = db.collection("repayments").stream()
+            for doc in repayments:
+                data = doc.to_dict()
+                if data.get("status") == "paid":
+                    payments.append({
+                        "payment_id": doc.id,
+                        "loan_id": data.get("loan_id"),
+                        "user_id": data.get("uid"),
+                        "month": data.get("month"),
+                        "amount": data.get("amount"),
+                        "status": data.get("status"),
+                        "paid_at": data.get("paid_at"),
+                        "payment_intent_id": data.get("stripe_payment_intent_id")
+                    })
+        
+        elif user_role == "provider_admin":
+            # Provider sees payments for loans they approved
+            # First get loans approved by this provider
+            shares = db.collection("loan_shares").where("provider_id", "==", user_uid).where("status", "==", "approved").stream()
+            approved_loan_ids = [s.to_dict().get("loan_id") for s in shares]
+            
+            for loan_id in approved_loan_ids:
+                repayments = db.collection("repayments").where("loan_id", "==", loan_id).stream()
+                for doc in repayments:
+                    data = doc.to_dict()
+                    if data.get("status") == "paid":
+                        payments.append({
+                            "payment_id": doc.id,
+                            "loan_id": data.get("loan_id"),
+                            "user_id": data.get("uid"),
+                            "month": data.get("month"),
+                            "amount": data.get("amount"),
+                            "status": data.get("status"),
+                            "paid_at": data.get("paid_at"),
+                            "payment_intent_id": data.get("stripe_payment_intent_id")
+                        })
+        
+        else:
+            # Regular user sees only their own payments
+            repayments = db.collection("repayments").where("uid", "==", user_uid).stream()
+            for doc in repayments:
+                data = doc.to_dict()
+                payments.append({
+                    "payment_id": doc.id,
+                    "loan_id": data.get("loan_id"),
+                    "month": data.get("month"),
+                    "amount": data.get("amount"),
+                    "status": data.get("status"),
+                    "due_date": data.get("due_date"),
+                    "paid_at": data.get("paid_at"),
+                    "payment_intent_id": data.get("stripe_payment_intent_id")
+                })
+        
+        # Sort by paid_at date (most recent first)
+        payments.sort(key=lambda x: x.get("paid_at") or "", reverse=True)
+        
+        return {
+            "status": "success",
+            "payments": payments,
+            "total_count": len(payments),
+            "total_amount": sum(p.get("amount", 0) for p in payments if p.get("status") == "paid")
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -3,6 +3,7 @@ from datetime import datetime
 from app.core.config import db
 from app.core.security import require_provider_admin
 from app.models.schemas import RequestFullDetailsInput, LoanDecisionInput
+from app.services.notification_service import send_loan_approved_notification, send_loan_rejected_notification
 
 router = APIRouter()
 
@@ -112,13 +113,28 @@ def loan_decision(data: LoanDecisionInput, background_tasks: BackgroundTasks, us
             "offered_interest_rate": data.offered_interest_rate
         })
 
-        # Send rejection email immediately to user
-        if data.decision == "rejected":
+        # Get user details for notifications
+        user_doc = db.collection("users").document(share["user_uid"]).get().to_dict()
+        
+        # Send notification based on decision
+        if data.decision == "approved":
+            background_tasks.add_task(
+                send_loan_approved_notification,
+                share["user_uid"],
+                share.get("loan_amount", 0),
+                data.offered_interest_rate
+            )
+        else:
+            # Send rejection email and notification
             from app.services.email import email_loan_rejected
-            user_doc = db.collection("users").document(share["user_uid"]).get().to_dict()
             company_doc = db.collection("companies").document(company_id).get()
             company_name = company_doc.to_dict().get("name", "Bank") if company_doc.exists else "Bank"
             background_tasks.add_task(email_loan_rejected, user_doc["name"], user_doc["email"], company_name, data.reason)
+            background_tasks.add_task(
+                send_loan_rejected_notification,
+                share["user_uid"],
+                data.reason
+            )
 
         return {
             "status": "success",

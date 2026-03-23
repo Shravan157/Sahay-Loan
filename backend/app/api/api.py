@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import auth, user, admin, provider, common, payments
+from app.api.endpoints import auth, user, admin, provider, common, payments, provider_documents
 
 api_router = APIRouter()
 
@@ -18,3 +18,4 @@ api_router.include_router(admin.router, prefix="/sahay-admin", tags=["admin"])
 
 # Provider routes
 api_router.include_router(provider.router, prefix="/provider-admin", tags=["provider"])
+api_router.include_router(provider_documents.router, prefix="/provider-documents", tags=["provider-documents"])

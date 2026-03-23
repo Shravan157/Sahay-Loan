@@ -19,13 +19,15 @@ class CompanyModel {
 
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
     return CompanyModel(
-      id: json['id'] ?? '',
+      id: json['company_id'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
       description: json['description'],
-      type: json['type'] ?? 'Bank',
-      createdAt: json['created_at'] != null
+      type: json['type'] ?? json['company_type'] ?? 'Bank',
+      createdAt: json['added_at'] != null
+          ? DateTime.tryParse(json['added_at'])
+          : json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
     );

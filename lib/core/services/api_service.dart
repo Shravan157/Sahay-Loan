@@ -14,6 +14,7 @@ class ApiService {
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       };
 
   Map<String, String> get _authHeaders {
@@ -94,7 +95,15 @@ class ApiService {
     } else {
       String message = 'An error occurred';
       if (body is Map && body.containsKey('detail')) {
-        message = body['detail'];
+        final detail = body['detail'];
+        if (detail is String) {
+          message = detail;
+        } else if (detail is List && detail.isNotEmpty) {
+          // Handle FastAPI validation errors which return a list
+          message = detail.join(', ');
+        } else {
+          message = detail.toString();
+        }
       } else if (body is Map && body.containsKey('message')) {
         message = body['message'];
       }

@@ -14,6 +14,8 @@ dependencies:
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.0
   cloud_firestore: ^4.15.0
+  firebase_messaging: ^14.7.0
+  flutter_local_notifications: ^17.0.0
 
   # HTTP & API
   http: ^1.2.0
@@ -46,6 +48,9 @@ dependencies:
 
   # Utils
   intl: ^0.19.0
+
+  # Payment
+  flutter_stripe: ^11.0.0
 
 dev_dependencies:
   flutter_test:

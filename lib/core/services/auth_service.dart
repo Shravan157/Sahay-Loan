@@ -1,4 +1,5 @@
 import '../../models/user_model.dart';
+import '../../models/provider_document_model.dart';
 import '../constants/api_endpoints.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
@@ -34,6 +35,45 @@ class AuthService {
       return AuthResult.success(response.data);
     } else {
       return AuthResult.error(response.error ?? 'Registration failed');
+    }
+  }
+
+  // Register Provider
+  Future<AuthResult> registerProvider({
+    required String companyName,
+    required String email,
+    required String password,
+    required String phone,
+    required String companyType,
+    required String cin,
+    required String gstin,
+    required String pan,
+    required String registeredAddress,
+    String? website,
+    required Map<String, BusinessDocument?> documents,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.register,
+      body: {
+        'name': companyName,  // Backend expects 'name' not 'company_name'
+        'email': email,
+        'password': password,
+        'phone': phone,
+        'role': 'provider_admin',
+        'company_type': companyType,
+        'cin': cin,
+        'gstin': gstin,
+        'pan': pan,
+        'registered_address': registeredAddress,
+        'website': website,
+        // Note: documents are handled separately or stored in a different collection
+      },
+    );
+
+    if (response.success) {
+      return AuthResult.success(response.data);
+    } else {
+      return AuthResult.error(response.error ?? 'Provider registration failed');
     }
   }
 

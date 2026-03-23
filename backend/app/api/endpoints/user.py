@@ -10,17 +10,11 @@ from app.core.security import verify_firebase_token
 from app.core.ml_models import credit_model, credit_scaler
 from app.models.schemas import OCRRequest, KYCInput, CreditScoreInput, LoanApplication, EMIPayment
 from app.utils.helpers import extract_aadhaar_details, extract_pan_details, calculate_emi
+from app.services.notification_service import send_kyc_submitted_notification, send_loan_applied_notification
 import re
+from datetime import datetime
 
 router = APIRouter()
-
-# ================================================================
-# OCR ENDPOINTS
-# ================================================================
-# OCR using Tesseract (Free alternative to Google Vision)
-# Install: pip install pytesseract pillow pdf2image
-# Also install Tesseract OCR: https://github.com/UB-Mannheim/tesseract/wiki
-# ================================================================
 @router.post("/ocr-scan")
 async def ocr_scan(request: OCRRequest, user=Depends(verify_firebase_token)):
     try:
@@ -157,6 +151,9 @@ def submit_kyc(data: KYCInput, background_tasks: BackgroundTasks, user=Depends(v
         # Send KYC confirmation email
         from app.services.email import email_kyc_submitted
         background_tasks.add_task(email_kyc_submitted, data.name, data.email)
+        
+        # Send KYC notification
+        background_tasks.add_task(send_kyc_submitted_notification, user["uid"])
 
         return {
             "status": "success",
@@ -223,19 +220,42 @@ def predict_credit_score(data: CreditScoreInput, user=Depends(verify_firebase_to
         raise HTTPException(status_code=500, detail="ML models not loaded.")
         
     try:
-        input_array = np.array([[
-            data.Annual_Income, data.Monthly_Inhand_Salary,
-            data.Num_Bank_Accounts, data.Num_Credit_Card,
-            data.Interest_Rate, data.Num_of_Loan,
-            data.Delay_from_due_date, data.Num_of_Delayed_Payment,
-            data.Changed_Credit_Limit, data.Num_Credit_Inquiries,
-            data.Outstanding_Debt, data.Credit_History_Age,
-            data.Total_EMI_per_month, data.Amount_invested_monthly,
-            data.Monthly_Balance, data.Credit_Mix_label,
-            data.Payment_of_Min_Amount_label, data.Type_of_Loan_label
-        ]])
+        import pandas as pd
+        
+        # Create DataFrame with proper feature names to match training data
+        feature_names = [
+            'Annual_Income', 'Monthly_Inhand_Salary', 'Num_Bank_Accounts',
+            'Num_Credit_Card', 'Interest_Rate', 'Num_of_Loan',
+            'Delay_from_due_date', 'Num_of_Delayed_Payment',
+            'Changed_Credit_Limit', 'Num_Credit_Inquiries',
+            'Outstanding_Debt', 'Credit_History_Age',
+            'Total_EMI_per_month', 'Amount_invested_monthly',
+            'Monthly_Balance', 'Credit_Mix_label',
+            'Payment_of_Min_Amount_label', 'Type_of_Loan_label'
+        ]
+        
+        input_data = pd.DataFrame([{
+            'Annual_Income': data.Annual_Income,
+            'Monthly_Inhand_Salary': data.Monthly_Inhand_Salary,
+            'Num_Bank_Accounts': data.Num_Bank_Accounts,
+            'Num_Credit_Card': data.Num_Credit_Card,
+            'Interest_Rate': data.Interest_Rate,
+            'Num_of_Loan': data.Num_of_Loan,
+            'Delay_from_due_date': data.Delay_from_due_date,
+            'Num_of_Delayed_Payment': data.Num_of_Delayed_Payment,
+            'Changed_Credit_Limit': data.Changed_Credit_Limit,
+            'Num_Credit_Inquiries': data.Num_Credit_Inquiries,
+            'Outstanding_Debt': data.Outstanding_Debt,
+            'Credit_History_Age': data.Credit_History_Age,
+            'Total_EMI_per_month': data.Total_EMI_per_month,
+            'Amount_invested_monthly': data.Amount_invested_monthly,
+            'Monthly_Balance': data.Monthly_Balance,
+            'Credit_Mix_label': data.Credit_Mix_label,
+            'Payment_of_Min_Amount_label': data.Payment_of_Min_Amount_label,
+            'Type_of_Loan_label': data.Type_of_Loan_label
+        }], columns=feature_names)
 
-        scaled_input = credit_scaler.transform(input_array)
+        scaled_input = credit_scaler.transform(input_data)
         prediction = credit_model.predict(scaled_input)[0]
         label_map = {0: "Good", 1: "Poor", 2: "Standard"}
         credit_score = label_map[int(prediction)]
@@ -320,6 +340,9 @@ def apply_loan(data: LoanApplication, background_tasks: BackgroundTasks, user=De
         from app.services.email import email_loan_applied
         user_doc = db.collection("users").document(user["uid"]).get().to_dict()
         background_tasks.add_task(email_loan_applied, user_doc["name"], user_doc["email"], data.loan_amount, loan_id)
+        
+        # Send loan application notification
+        background_tasks.add_task(send_loan_applied_notification, user["uid"], data.loan_amount)
 
         return {
             "status": "pending_sahay_review",
@@ -413,19 +436,43 @@ def pay_emi(data: EMIPayment, background_tasks: BackgroundTasks, user=Depends(ve
 # ================================================================
 @router.get("/my-notifications")
 def my_notifications(user=Depends(verify_firebase_token)):
-    """User — Get all notifications sent by SAHAY Admin"""
+    """User — Get all notifications (push notification history)"""
     try:
-        loans = db.collection("loans").where("uid", "==", user["uid"]).get()
         notifications = []
+        
+        # Get notifications stored in user's subcollection
+        user_notifications = db.collection("users").document(user["uid"]).collection("notifications").order_by("created_at", direction="DESCENDING").limit(50).get()
+        
+        for doc in user_notifications:
+            data = doc.to_dict()
+            notifications.append({
+                "id": doc.id,
+                "title": data.get("title", ""),
+                "body": data.get("body", ""),
+                "type": data.get("type", "general"),
+                "data": data.get("data", {}),
+                "read": data.get("read", False),
+                "created_at": data.get("created_at", "")
+            })
+        
+        # Also get loan notifications (for backwards compatibility)
+        loans = db.collection("loans").where("uid", "==", user["uid"]).get()
         for loan in loans:
             loan_data = loan.to_dict()
             if loan_data.get("user_notification"):
                 notifications.append({
-                    "loan_id": loan_data["loan_id"],
-                    "message": loan_data["user_notification"],
-                    "status": loan_data["status"],
-                    "notified_at": loan_data.get("notified_at")
+                    "id": f"loan_{loan_data['loan_id']}",
+                    "title": "Loan Update",
+                    "body": loan_data["user_notification"],
+                    "type": "loan_update",
+                    "data": {"loan_id": loan_data["loan_id"], "status": loan_data["status"]},
+                    "read": True,
+                    "created_at": loan_data.get("notified_at", "")
                 })
+        
+        # Sort by created_at descending
+        notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
         return {"notifications": notifications}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -115,11 +115,12 @@ class LoanModel {
 
   bool get isPending =>
       status == 'pending' || status == 'pending_sahay_review';
-  bool get isUnderReview => status == 'under_review';
-  bool get isApproved => status == 'approved';
+  bool get isUnderReview => status == 'under_review' || status == 'shared_with_provider';
+  bool get isApproved =>
+      status == 'approved' || status == 'provider_approved';
   bool get isDisbursed => status == 'disbursed';
   bool get isCompleted => status == 'completed';
-  bool get isRejected => status == 'rejected';
+  bool get isRejected => status == 'rejected' || status == 'provider_rejected';
 }
 
 class RepaymentModel {

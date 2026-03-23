@@ -2,8 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from firebase_admin import auth
 from datetime import datetime
 from app.core.config import db, ROLE_USER, ROLE_PROVIDER_ADMIN
-from app.core.security import require_sahay_admin
+from app.core.security import require_sahay_admin, verify_firebase_token
 from app.models.schemas import AddCompanyInput, SharePhase1Input, SharePhase2Input
+from app.services.notification_service import send_loan_disbursed_notification
 
 router = APIRouter()
 
@@ -24,6 +25,7 @@ def add_company(data: AddCompanyInput, user=Depends(require_sahay_admin)):
             "email": data.email,
             "phone": data.phone,
             "description": data.description,
+            "company_type": data.type if hasattr(data, 'type') else "Bank",
             "active": True,
             "added_by": user["uid"],
             "added_at": datetime.now().isoformat()
@@ -163,7 +165,7 @@ def share_phase1(data: SharePhase1Input, background_tasks: BackgroundTasks, user
             "phase2_data": None,
             "phase2_requested": False,
             "phase2_approved": False,
-            "status": "pending",            # pending / approved / rejected
+            "status": "phase1_shared",
             "decision": None,
             "decision_reason": None,
             "offered_interest_rate": None,
@@ -231,6 +233,7 @@ def approve_phase2(data: SharePhase2Input, background_tasks: BackgroundTasks, us
             "phase": 2,
             "phase2_data": phase2_data,
             "phase2_approved": True,
+            "status": "phase2_shared",
             "phase2_approved_at": datetime.now().isoformat(),
             "phase2_approved_by": user["uid"]
         })
@@ -364,6 +367,13 @@ def disburse_loan(loan_id: str, background_tasks: BackgroundTasks, user=Depends(
             loan["duration_months"],
             loan_id
         )
+        
+        # Send disbursal notification
+        background_tasks.add_task(
+            send_loan_disbursed_notification,
+            loan["uid"],
+            loan["loan_amount"]
+        )
 
         return {
             "status": "success",
@@ -379,5 +389,14 @@ def disburse_loan(loan_id: str, background_tasks: BackgroundTasks, user=Depends(
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/shared-profiles")
+def get_shared_profiles(user=Depends(verify_firebase_token)):
+    """Get all shared profiles for admin to manage Phase 2 requests"""
+    try:
+        shares = db.collection("shared_profiles").get()
+        return {"profiles": [s.to_dict() for s in shares]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

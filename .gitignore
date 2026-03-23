@@ -1,4 +1,4 @@
-# Miscellaneous
+# ─── Miscellaneous ───────────────────────────────────────────────────
 *.class
 *.log
 *.pyc
@@ -12,39 +12,42 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# ─── IntelliJ / Android Studio ──────────────────────────────────────
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# ─── VS Code ─────────────────────────────────────────────────────────
+# Uncomment if you want to exclude VS Code settings entirely
+# .vscode/
 
-# Flutter/Dart/Pub related
+# ─── AI / Editor Tool Directories ────────────────────────────────────
+.qoder/
+.zencoder/
+.zenflow/
+
+# ─── Flutter / Dart / Pub ────────────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
+.flutter-plugins
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Symbolication related
+# ─── Symbolication & Obfuscation ─────────────────────────────────────
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# ─── Android Build Artifacts ─────────────────────────────────────────
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# Secrets and sensitive files
+# ─── Secrets & Sensitive Files ───────────────────────────────────────
 backend/.env
 backend/serviceAccountKey.json
 android/app/google-services.json
@@ -55,3 +58,29 @@ lib/firebase_options.dart
 .env
 .env.local
 .env.*.local
+
+# ─── Python Cache & Virtual Environments ─────────────────────────────
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+.venv/
+*.egg-info/
+dist/
+*.egg
+
+# ─── Large ML Model Files (add to Git LFS or regenerate locally) ─────
+backend/credit_model.pkl
+
+# ─── Temporary Analysis / Debug Outputs ──────────────────────────────
+analyze.json
+analyze_new.json
+analyze_output.txt
+
+# ─── macOS Specifics ─────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store

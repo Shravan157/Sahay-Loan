@@ -111,4 +111,42 @@ class Validators {
     }
     return null;
   }
+
+  static String? validateGSTIN(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return AppStrings.requiredField;
+    }
+    // GSTIN format: 22AAAAA0000A1Z5 (15 characters)
+    // State code (2) + PAN (10) + Entity number (1) + Z + Check digit (1)
+    final gstinRegex = RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$');
+    if (!gstinRegex.hasMatch(value.toUpperCase())) {
+      return 'Invalid GSTIN format. Example: 22AAAAA0000A1Z5';
+    }
+    return null;
+  }
+
+  static String? validateCIN(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return AppStrings.requiredField;
+    }
+    // CIN format for companies: L12345AB1234PLC123456 (21 characters)
+    // For LLPs: AAA-1234 (varies)
+    final cinRegex = RegExp(r'^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$');
+    if (!cinRegex.hasMatch(value.toUpperCase())) {
+      return 'Invalid CIN format. Example: L12345AB1234PLC123456';
+    }
+    return null;
+  }
+
+  static String? validateIFSC(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return AppStrings.requiredField;
+    }
+    // IFSC format: SBIN0001234 (11 characters)
+    final ifscRegex = RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$');
+    if (!ifscRegex.hasMatch(value.toUpperCase())) {
+      return 'Invalid IFSC code. Example: SBIN0001234';
+    }
+    return null;
+  }
 }

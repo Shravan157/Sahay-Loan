@@ -4,6 +4,7 @@ import '../core/constants/api_endpoints.dart';
 import '../models/user_model.dart';
 import '../models/loan_model.dart';
 import '../models/company_model.dart';
+import 'provider_admin_provider.dart';
 
 class AdminProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
@@ -13,6 +14,7 @@ class AdminProvider extends ChangeNotifier {
   List<UserModel> _users = [];
   List<LoanModel> _allLoans = [];
   List<CompanyModel> _companies = [];
+  List<SharedLoanProfile> _sharedProfiles = [];
   Map<String, dynamic>? _dashboardStats;
   UserModel? _selectedUser;
 
@@ -23,6 +25,7 @@ class AdminProvider extends ChangeNotifier {
   List<LoanModel> get pendingLoans =>
       _allLoans.where((l) => l.isPending || l.isUnderReview).toList();
   List<CompanyModel> get companies => _companies;
+  List<SharedLoanProfile> get sharedProfiles => _sharedProfiles;
   Map<String, dynamic>? get dashboardStats => _dashboardStats;
   UserModel? get selectedUser => _selectedUser;
 
@@ -40,16 +43,21 @@ class AdminProvider extends ChangeNotifier {
     _setLoading(true);
     _setError(null);
 
-    final response = await _api.get(ApiEndpoints.adminDashboardStats);
+    // The backend doesn't have a dashboard-stats endpoint
+    // Instead we load users and loans and compute the counts locally
+    await loadAllUsers();
+    await loadAllLoans();
+
+    _dashboardStats = {
+      'total_users': _users.length,
+      'active_loans': _allLoans
+          .where((l) => l.isApproved || l.isDisbursed)
+          .length,
+      'pending_loans': pendingLoans.length,
+    };
 
     _setLoading(false);
-
-    if (response.success) {
-      _dashboardStats = response.data;
-      notifyListeners();
-    } else {
-      _setError(response.error);
-    }
+    notifyListeners();
   }
 
   Future<void> loadAllUsers() async {
@@ -86,6 +94,23 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadAllCompanies() async {
+    _setLoading(true);
+    _setError(null);
+
+    final response = await _api.get(ApiEndpoints.adminAllCompanies);
+
+    _setLoading(false);
+
+    if (response.success) {
+      final companiesData = response.data['companies'] as List<dynamic>? ?? [];
+      _companies = companiesData.map((c) => CompanyModel.fromJson(c)).toList();
+      notifyListeners();
+    } else {
+      _setError(response.error);
+    }
+  }
+
   Future<bool> addCompany(AddCompanyInput input) async {
     _setLoading(true);
     _setError(null);
@@ -111,10 +136,7 @@ class AdminProvider extends ChangeNotifier {
 
     final response = await _api.post(
       ApiEndpoints.adminSharePhase1,
-      body: {
-        'loan_id': loanId,
-        'company_id': companyId,
-      },
+      body: {'loan_id': loanId, 'company_id': companyId},
     );
 
     _setLoading(false);
@@ -134,10 +156,7 @@ class AdminProvider extends ChangeNotifier {
 
     final response = await _api.post(
       ApiEndpoints.adminSharePhase2,
-      body: {
-        'share_id': shareId,
-        'company_id': companyId,
-      },
+      body: {'share_id': shareId, 'company_id': companyId},
     );
 
     _setLoading(false);
@@ -155,10 +174,7 @@ class AdminProvider extends ChangeNotifier {
     _setError(null);
 
     final response = await _api.post(
-      ApiEndpoints.adminDisburseLoan,
-      body: {
-        'loan_id': loanId,
-      },
+      '${ApiEndpoints.adminDisburseLoan}/$loanId',
     );
 
     _setLoading(false);
@@ -169,6 +185,23 @@ class AdminProvider extends ChangeNotifier {
     } else {
       _setError(response.error);
       return false;
+    }
+  }
+
+  Future<void> loadSharedProfiles() async {
+    _setLoading(true);
+    _setError(null);
+
+    final response = await _api.get(ApiEndpoints.adminSharedProfiles);
+
+    _setLoading(false);
+
+    if (response.success) {
+      final profilesData = response.data['profiles'] as List<dynamic>? ?? [];
+      _sharedProfiles = profilesData.map((p) => SharedLoanProfile.fromJson(p)).toList();
+      notifyListeners();
+    } else {
+      _setError(response.error);
     }
   }
 
