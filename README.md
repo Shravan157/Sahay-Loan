@@ -211,8 +211,7 @@ cp backend/.env.example backend/.env
 # ── Firebase ────────────────────────────────────────────────
 FIREBASE_WEB_API_KEY=your_firebase_web_api_key
 
-# ── Google Vision API (for OCR) ─────────────────────────────
-GOOGLE_VISION_API_KEY=your_google_vision_api_key
+
 
 # ── Gmail SMTP (for email notifications) ────────────────────
 # Generate an App Password at: https://myaccount.google.com → Security → App Passwords
