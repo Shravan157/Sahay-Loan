@@ -497,6 +497,6 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 Made with ❤️ by **Shravan**
 
-*SAHAY — Because everyone deserves a chance.*
+
 
 </div>
