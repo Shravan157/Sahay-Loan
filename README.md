@@ -11,10 +11,6 @@
 [![Stripe](https://img.shields.io/badge/Stripe-Payments-6772E5?style=for-the-badge&logo=stripe&logoColor=white)](https://stripe.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
-<br/>
-
-<img src="sahay_splash.png" alt="SAHAY App Splash Screen" width="300"/>
-
 </div>
 
 ---
@@ -500,5 +496,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 <div align="center">
 
 Made with ❤️ by **Shravan**
+
+
 
 </div>
